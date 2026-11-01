@@ -1,4 +1,3 @@
-
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -110,10 +109,8 @@ Result ISelfController::LockExit() {
     std::scoped_lock lk{m_applet->lock};
 
     if (m_applet->lifecycle_manager.GetExitRequested()) {
-        // With exit already requested, ignore and terminate immediately.
         m_applet->process->Terminate();
     } else {
-        // Otherwise, set exit lock state.
         m_applet->exit_locked = true;
         system.SetExitLocked(true);
     }
@@ -148,7 +145,6 @@ Result ISelfController::EnterFatalSection() {
 Result ISelfController::LeaveFatalSection() {
     LOG_DEBUG(Service_AM, "called");
 
-    // Entry and exit of fatal sections must be balanced.
     std::scoped_lock lk{m_applet->lock};
     R_UNLESS(m_applet->fatal_section_count > 0, AM::ResultFatalSectionCountImbalance);
     m_applet->fatal_section_count--;
@@ -284,7 +280,7 @@ Result ISelfController::CreateManagedDisplaySeparableLayer(Out<u64> out_layer_id
 }
 
 Result ISelfController::SetHandlesRequestToDisplay(bool enable) {
-    LOG_WARNING(Service_AM, "(STUBBED) called, enable={}");
+    LOG_WARNING(Service_AM, "(STUBBED) called, enable={}", enable);
     R_SUCCEED();
 }
 
@@ -331,15 +327,6 @@ Result ISelfController::ReportUserIsActive() {
 Result ISelfController::SetAutoSleepDisabled(bool is_auto_sleep_disabled) {
     LOG_DEBUG(Service_AM, "called. is_auto_sleep_disabled={}", is_auto_sleep_disabled);
 
-    // On the system itself, if the previous state of is_auto_sleep_disabled
-    // differed from the current value passed in, it'd signify the internal
-    // window manager to update (and also increment some statistics like update counts)
-    //
-    // It'd also indicate this change to an idle handling context.
-    //
-    // However, given we're emulating this behavior, most of this can be ignored
-    // and it's sufficient to simply set the member variable for querying via
-    // IsAutoSleepDisabled().
     std::scoped_lock lk{m_applet->lock};
     m_applet->auto_sleep_disabled = is_auto_sleep_disabled;
 
@@ -370,9 +357,6 @@ Result ISelfController::GetAccumulatedSuspendedTickValue(
     Out<u64> out_accumulated_suspended_tick_value) {
     LOG_DEBUG(Service_AM, "called.");
 
-    // This command returns the total number of system ticks since ISelfController creation
-    // where the game was suspended. Since Yuzu doesn't implement game suspension, this command
-    // can just always return 0 ticks.
     std::scoped_lock lk{m_applet->lock};
     *out_accumulated_suspended_tick_value = m_applet->suspended_ticks;
 
@@ -390,9 +374,6 @@ Result ISelfController::GetAccumulatedSuspendedTickChangedEvent(
 Result ISelfController::SetAlbumImageTakenNotificationEnabled(bool enabled) {
     LOG_WARNING(Service_AM, "(STUBBED) called. enabled={}", enabled);
 
-    // This service call sets an internal flag whether a notification is shown when an image is
-    // captured. Currently we do not support capturing images via the capture button, so this can be
-    // stubbed for now.
     std::scoped_lock lk{m_applet->lock};
     m_applet->album_image_taken_notification_enabled = enabled;
 
