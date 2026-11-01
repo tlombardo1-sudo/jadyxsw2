@@ -1,3 +1,4 @@
+
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -11,6 +12,7 @@
 #include "core/hle/service/am/service/self_controller.h"
 #include "core/hle/service/caps/caps_su.h"
 #include "core/hle/service/cmif_serialization.h"
+#include "core/hle/service/nx2_gsv.h"
 #include "core/hle/service/nvnflinger/nvnflinger.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/hle/service/vi/vi_results.h"
@@ -73,6 +75,7 @@ ISelfController::ISelfController(Core::System& system_, std::shared_ptr<Applet> 
         {230, D<&ISelfController::Unknown230>, "Unknown230"},
         {240, D<&ISelfController::Unknown240>, "Unknown240"},
         {1000, nullptr, "GetDebugStorageChannel"},
+        {2000, &ISelfController::GetNx2GraphicsSystemSession, "GetGraphicsSystemSession (Switch 2)"},
     };
     // clang-format on
 
@@ -81,6 +84,11 @@ ISelfController::ISelfController(Core::System& system_, std::shared_ptr<Applet> 
     std::scoped_lock lk{m_applet->lock};
     m_applet->display_layer_manager.Initialize(system, m_process, m_applet->applet_id,
                                                m_applet->library_applet_mode);
+}
+
+void ISelfController::GetNx2GraphicsSystemSession(HLERequestContext& ctx) {
+    LOG_WARNING(Service_AM, "(STUBBED) Switch 2 ISelfController::2000, returning nx2:gsv");
+    ReturnRawSession(ctx, std::make_shared<INx2GraphicsSystemSession>(system));
 }
 
 ISelfController::~ISelfController() {
@@ -276,7 +284,7 @@ Result ISelfController::CreateManagedDisplaySeparableLayer(Out<u64> out_layer_id
 }
 
 Result ISelfController::SetHandlesRequestToDisplay(bool enable) {
-    LOG_WARNING(Service_AM, "(STUBBED) called, enable={}", enable);
+    LOG_WARNING(Service_AM, "(STUBBED) called, enable={}");
     R_SUCCEED();
 }
 
@@ -332,7 +340,6 @@ Result ISelfController::SetAutoSleepDisabled(bool is_auto_sleep_disabled) {
     // However, given we're emulating this behavior, most of this can be ignored
     // and it's sufficient to simply set the member variable for querying via
     // IsAutoSleepDisabled().
-
     std::scoped_lock lk{m_applet->lock};
     m_applet->auto_sleep_disabled = is_auto_sleep_disabled;
 
