@@ -1,3 +1,4 @@
+
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -164,7 +165,17 @@ HLERequestContext::HLERequestContext(Kernel::KernelCore& kernel_, Core::Memory::
     cmd_buf[0] = 0;
 }
 
-HLERequestContext::~HLERequestContext() = default;
+HLERequestContext::~HLERequestContext() {
+    // If response translation was abandoned, release the initial references owned by copied
+    // interface sessions. Successfully translated sessions have already transferred this
+    // reference to the caller's handle table.
+    for (auto& object : outgoing_copy_objects) {
+        if (object.close_after_copy && object.object) {
+            object.object->Close(kernel);
+            object.close_after_copy = false;
+        }
+    }
+}
 
 void HLERequestContext::ParseCommandBuffer(u32_le* src_cmdbuf, bool incoming) {
     IPC::RequestParser rp(src_cmdbuf);
@@ -301,8 +312,14 @@ Result HLERequestContext::WriteToOutgoingCommandBuffer() {
 
     for (auto& object : outgoing_copy_objects) {
         Handle handle{};
-        if (object) {
-            R_TRY(handle_table.Add(kernel, &handle, object));
+        if (object.object) {
+            R_TRY(handle_table.Add(kernel, &handle, object.object));
+            if (object.close_after_copy) {
+                // The handle table now owns the caller's reference. Release the initial
+                // reference created with the copied interface session.
+                object.object->Close(kernel);
+                object.close_after_copy = false;
+            }
         }
         cmd_buf[current_offset++] = handle;
     }
@@ -542,6 +559,22 @@ void HLERequestContext::AddMoveInterface(SessionRequestHandlerPtr s) {
     server.RegisterSession(&session->GetServerSession(), next_manager);
 
     AddMoveObject(&session->GetClientSession());
+}
+
+void HLERequestContext::AddCopyInterface(SessionRequestHandlerPtr s) {
+    ASSERT(Kernel::GetCurrentProcess(kernel).GetResourceLimit()->Reserve(kernel, Kernel::LimitableResource::SessionCountMax, 1));
+
+    auto* session = Kernel::KSession::Create(kernel);
+    session->Initialize(kernel, nullptr, 0);
+    Kernel::KSession::Register(kernel, session);
+
+    auto& server = manager.lock()->GetServerManager();
+    auto next_manager = std::make_shared<Service::SessionRequestManager>(kernel, server);
+    next_manager->SetSessionHandler(std::move(s));
+    server.RegisterSession(&session->GetServerSession(), next_manager);
+
+    outgoing_copy_objects.emplace_back(
+        OutgoingCopyObject{&session->GetClientSession(), true});
 }
 
 std::string HLERequestContext::Description() const {
