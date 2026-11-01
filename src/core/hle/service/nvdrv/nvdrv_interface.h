@@ -1,3 +1,4 @@
+
 // SPDX-FileCopyrightText: Copyright 2018 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -10,10 +11,17 @@
 #include "core/hle/service/nvdrv/nvdrv.h"
 #include "core/hle/service/service.h"
 
+namespace Kernel {
+class KProcess;
+}
+
 namespace Service::Nvidia {
 
 class NVDRV final : public ServiceFramework<NVDRV> {
 public:
+    // Opens a driver-container session for a process without the CMIF Initialize command.
+    void InitializeForProcess(Kernel::KProcess* process);
+
     explicit NVDRV(Core::System& system_, std::shared_ptr<Module> nvdrv_, const char* name);
     ~NVDRV() override;
 
