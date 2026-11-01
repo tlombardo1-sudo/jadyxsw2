@@ -1,3 +1,4 @@
+
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -13,6 +14,10 @@
 
 namespace Kernel {
 class KReadableEvent;
+}
+
+namespace Service {
+class HLERequestContext;
 }
 
 namespace Service::Capture {
@@ -77,6 +82,9 @@ private:
     Result SetRecordVolumeMuted(bool muted);
     Result Unknown230(u32 in_val, Out<u16> out_val);
     Result Unknown240(u32 in_val);
+
+    // Switch 2: returns the nx2:gsv graphics-system session.
+    void GetNx2GraphicsSystemSession(HLERequestContext& ctx);
 
     Kernel::KProcess* const m_process;
     const std::shared_ptr<Applet> m_applet;
