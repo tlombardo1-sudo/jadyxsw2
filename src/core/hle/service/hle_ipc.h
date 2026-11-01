@@ -116,7 +116,7 @@ using SessionManagerCheckpoint = Pulse::SessionGraph;
 
 /**
  * Manages the underlying HLE requests for a session, and whether (or not) the session should be
- * treated as a domain. This is managed separately from server sessions, as this state is shared
+ * treated as a domain. This is managed separately from the server sessions, as this state is shared
  * when objects are cloned.
  */
 class SessionRequestManager final {
@@ -221,6 +221,13 @@ private:
  * implementation.
  */
 class HLERequestContext {
+    // Copied interface sessions own their initial client reference until the response handle
+    // has been added to the caller's handle table. Ordinary copied objects remain non-owning.
+    struct OutgoingCopyObject {
+        Kernel::KAutoObject* object{};
+        bool close_after_copy{};
+    };
+
 public:
     explicit HLERequestContext(Kernel::KernelCore& kernel, Core::Memory::Memory& memory, Kernel::KServerSession* session, Kernel::KThread* thread);
     ~HLERequestContext();
@@ -326,8 +333,8 @@ public:
      * @tparam T an arbitrary container that satisfies the
      *         ContiguousContainer concept in the C++ standard library or a trivially copyable type.
      *
-     * @param data         The container/data to write into a buffer.
-     * @param buffer_index The buffer in particular to write to.
+     * @param data         The container/data to write into the buffer.
+     * @param buffer_index The buffer in particular to use.
      */
     template <typename T, typename = std::enable_if_t<!std::is_pointer_v<T>>>
     std::size_t WriteBuffer(const T& data, std::size_t buffer_index = 0) const {
@@ -380,9 +387,10 @@ public:
     }
 
     void AddMoveInterface(SessionRequestHandlerPtr s);
+    void AddCopyInterface(SessionRequestHandlerPtr s);
 
     void AddCopyObject(Kernel::KAutoObject* object) {
-        outgoing_copy_objects.emplace_back(object);
+        outgoing_copy_objects.emplace_back(OutgoingCopyObject{object, false});
     }
 
     void AddDomainObject(SessionRequestHandlerPtr object) {
@@ -446,7 +454,7 @@ private:
     boost::container::static_vector<Handle, IPC::MAX_INCOMING_MOVE_HANDLERS> incoming_move_handles;
     boost::container::static_vector<Handle, IPC::MAX_INCOMING_COPY_HANDLERS> incoming_copy_handles;
     boost::container::static_vector<Kernel::KAutoObject*, IPC::MAX_OUTGOING_MOVE_OBJECTS> outgoing_move_objects;
-    boost::container::static_vector<Kernel::KAutoObject*, IPC::MAX_OUTGOING_COPY_OBJECTS> outgoing_copy_objects;
+    boost::container::static_vector<OutgoingCopyObject, IPC::MAX_OUTGOING_COPY_OBJECTS> outgoing_copy_objects;
     boost::container::static_vector<SessionRequestHandlerPtr, IPC::MAX_OUTGOING_DOMAIN_OBJECTS> outgoing_domain_objects;
 
     mutable std::array<Common::ScratchBuffer<u8>, 3> read_buffer_data_a{};
