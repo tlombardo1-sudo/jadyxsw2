@@ -1,3 +1,4 @@
+
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -398,6 +399,15 @@ SessionRequestHandlerPtr NVDRV::PulseRestore(std::string_view kind, Pulse::Handl
     }
     in.End();
     return shared_from_this();
+}
+
+void NVDRV::InitializeForProcess(Kernel::KProcess* process) {
+    if (is_initialized) {
+        return;
+    }
+
+    session_id = nvdrv->GetContainer().OpenSession(process);
+    is_initialized = true;
 }
 
 NVDRV::NVDRV(Core::System& system_, std::shared_ptr<Module> nvdrv_, const char* name)
