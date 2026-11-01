@@ -1,4 +1,3 @@
-
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -65,6 +64,14 @@ inline void ReturnRawSession(HLERequestContext& ctx, std::shared_ptr<T> iface) {
     ctx.AddCopyInterface(std::move(iface));
     IPC::ResponseBuilder rb{ctx, 2, 1, 0};
     rb.Push(ResultSuccess);
+}
+
+// Creates a new TIPC server-side interface and returns its client session as a copy handle.
+template <class T>
+inline void ReturnRawTipcSession(HLERequestContext& ctx, std::shared_ptr<T> iface) {
+    ctx.AddCopyInterface(std::move(iface));
+    IPC::ResponseBuilder rb{ctx, 2, 1, 0};
+    rb.PushRaw<u32>(ResultSuccess.raw);
 }
 
 // Switch 2 syncpoint service returned by nx2:gsv command 202.
@@ -146,7 +153,7 @@ private:
         auto* event = GetEvent(slot);
 
         IPC::ResponseBuilder rb{ctx, 2, 1, 0};
-        rb.Push(ResultSuccess);
+        rb.PushRaw<u32>(ResultSuccess.raw);
         rb.PushCopyObjects(ctx, event->GetReadableEvent());
     }
 
@@ -286,13 +293,12 @@ private:
                     "(STUBBED) nx2:gsv TIPC {} [2]={:#x} [3]={:#x} [4]={:#x} [5]={:#x}",
                     ctx.GetCommand(), words[2], words[3], words[4], words[5]);
 
-        IPC::ResponseBuilder rb{ctx, 2};
-        rb.Push(ResultSuccess);
+        TipcReplyWords(ctx, {});
     }
 
     void OpenSyncptSession(HLERequestContext& ctx) {
         LOG_WARNING(Service, "(STUBBED) nx2:gsv TIPC 202, returning nx2:syncpt");
-        ReturnRawSession(ctx, std::make_shared<INx2SyncptSession>(system));
+        ReturnRawTipcSession(ctx, std::make_shared<INx2SyncptSession>(system));
     }
 
     void AttachSyncptMemory(HLERequestContext& ctx) {
@@ -357,7 +363,7 @@ private:
         }
 
         IPC::ResponseBuilder rb{ctx, 2, 2, 0};
-        rb.Push(ResultSuccess);
+        rb.PushRaw<u32>(ResultSuccess.raw);
         rb.PushCopyObjects(ctx, *m_syncpt_events[0]);
         rb.PushCopyObjects(ctx, m_syncpt_events[1]->GetReadableEvent());
     }
@@ -423,7 +429,7 @@ private:
         auto nvsrv = std::make_shared<Nvidia::NVDRV>(
             system, service->GetModule(), "nx2:nvsrv");
         nvsrv->InitializeForProcess(process);
-        ReturnRawSession(ctx, std::move(nvsrv));
+        ReturnRawTipcSession(ctx, std::move(nvsrv));
     }
 
     KernelHelpers::ServiceContext m_context;
